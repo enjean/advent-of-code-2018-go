@@ -5,38 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 )
-
-type Path struct {
-	route string
-	branches []*Path
-}
 
 type position struct {
 	x int
 	y int
 }
-
-//func (rs *RoomStack) New() *RoomStack {
-//	rs.rooms = []*Room{}
-//	return rs
-//}
-
-//func (ps *positionStack) Push(position *position) {
-//	ps.positions = append(ps.positions, position)
-//}
-//
-//func (ps *positionStack) Pop() *position {
-//	n := len(ps.positions) - 1
-//	position := ps.positions[n]
-//	ps.positions = ps.positions[:n]
-//	return position
-//}
-//
-//func (ps *positionStack) Peek() *position {
-//	return ps.positions[len(ps.positions) - 1]
-//}
 
 func main() {
 	file, err := os.Open("day20/input.txt")
@@ -93,31 +67,4 @@ func FurthestRoom(pathRegex string) int {
 		}
 	}
 	return maxDistance
-}
-
-func ParsePath(input string) *Path {
-	var pathBuilder strings.Builder
-	for _, runeVal := range input {
-		switch runeVal {
-		case '^', '$':
-			continue
-
-		default:
-			pathBuilder.WriteRune(runeVal)
-		}
-
-	}
-	return &Path{pathBuilder.String(), nil}
-}
-
-func (p *Path) print() string {
-	var sb strings.Builder
-	sb.WriteString("{")
-	sb.WriteString(p.route)
-	sb.WriteString(" [")
-	for _, branch := range p.branches {
-		sb.WriteString(branch.print())
-	}
-	sb.WriteString("]}")
-	return sb.String()
 }
