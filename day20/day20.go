@@ -12,6 +12,8 @@ type position struct {
 	y int
 }
 
+type distanceMap map[position]int
+
 func main() {
 	file, err := os.Open("day20/input.txt")
 	if err != nil {
@@ -24,17 +26,39 @@ func main() {
 	scanner.Scan()
 	pathRegex := scanner.Text()
 
-	furthestRoom := FurthestRoom(pathRegex)
-	fmt.Printf("Day 20 Part 1: Furthest Room = %d", furthestRoom)
+	distancesToRooms := distancesToRooms(pathRegex)
+
+	fmt.Printf("Day 20 Part 1: Furthest Room = %d\n", distancesToRooms.max())
+	fmt.Printf("Day 20 Part 2: At Least 1000 Away = %d\n", distancesToRooms.atLeastNAway(1000))
 }
 
-func FurthestRoom(pathRegex string) int {
+func (dm *distanceMap) max() int {
+	maxDistance := 0
+	for _, distanceToRoom := range *dm {
+		if distanceToRoom > maxDistance {
+			maxDistance = distanceToRoom
+		}
+	}
+	return maxDistance
+}
+
+func (dm* distanceMap) atLeastNAway(n int) int {
+	count := 0
+	for _, distanceToRoom := range *dm {
+		if distanceToRoom >= n {
+			count++
+		}
+	}
+	return count
+}
+
+func distancesToRooms(pathRegex string) *distanceMap{
 	roomStack := []*position{}
 	currentPosition := &position{0, 0}
-	distances := make(map[position]int)
+	distancesToRooms := make(distanceMap)
 	maxDistance := 0
 	for _, runeVal := range pathRegex {
-		previousDistance := distances[*currentPosition]
+		previousDistance := distancesToRooms[*currentPosition]
 		switch runeVal {
 		case '^', '$':
 			continue
@@ -56,15 +80,15 @@ func FurthestRoom(pathRegex string) int {
 			roomStack = roomStack[:n]
 		}
 
-		currentDistance, roomSeen := distances[*currentPosition]
+		currentDistance, roomSeen := distancesToRooms[*currentPosition]
 		if !roomSeen {
 			currentDistance = previousDistance + 1
-			distances[*currentPosition] = currentDistance
+			distancesToRooms[*currentPosition] = currentDistance
 		}
 		//fmt.Printf("%c In room %+v distance %d\n", runeVal, currentPosition, currentDistance)
 		if currentDistance > maxDistance {
 			maxDistance = currentDistance
 		}
 	}
-	return maxDistance
+	return &distancesToRooms
 }
