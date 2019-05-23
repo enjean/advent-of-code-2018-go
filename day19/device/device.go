@@ -1,7 +1,5 @@
 package device
 
-import "fmt"
-
 type Device struct {
 	Registers []int
 }
@@ -16,9 +14,9 @@ func (d Device) Execute(program *Program, maxInstructions int) int {
 	for instructionsExecuted < maxInstructions && instructionPointer < len(program.Instructions) {
 		d.Registers[program.IP] = instructionPointer
 		instruction := program.Instructions[instructionPointer]
-		fmt.Printf("ip=%d %v %v %d %d %d ", instructionPointer, d.Registers, instruction.operation, instruction.a, instruction.b, instruction.c)
+		//fmt.Printf("ip=%d %v %v %d %d %d ", instructionPointer, d.Registers, instruction.operation, instruction.a, instruction.b, instruction.c)
 		operations[instruction.operation](d.Registers, instruction.a, instruction.b, instruction.c)
-		fmt.Printf("%v\n", d.Registers)
+		//fmt.Printf("%v\n", d.Registers)
 		instructionPointer = d.Registers[program.IP]
 		instructionPointer++
 		instructionsExecuted++
