@@ -5,8 +5,6 @@ import (
 	"fmt"
 )
 
-const Infinity = int(^uint(0) >> 1)
-
 func main() {
 	//part1 := riskLevel(9, 796, 6969)
 	//fmt.Printf("Part 1 = %d\n", part1)
@@ -55,6 +53,18 @@ func (r RegionType) String() string {
 	return fmt.Sprintf("RegionType(%d)", r)
 }
 
+func (r RegionType) toolsForRegion() []Tool {
+	switch r {
+	case Rocky:
+		return []Tool{ClimbingGear, Torch}
+	case Wet:
+		return []Tool{ClimbingGear, Neither}
+	case Narrow:
+		return []Tool{Torch, Neither}
+	}
+	panic("Unknown RegionType")
+}
+
 func riskLevelTable(maxX, maxY, targetX, targetY, depth int) [][]int {
 	erosionLevelTable := erosionLevelTable(maxX, maxY, targetX, targetY, depth)
 	riskLevelTable := make([][]int, len(erosionLevelTable))
@@ -98,36 +108,24 @@ func (t Tool) String() string {
 	return fmt.Sprintf("Tool(%d)", t)
 }
 
-func toolsForRegion(regionType RegionType) []Tool {
-	switch regionType {
-	case Rocky:
-		return []Tool{ClimbingGear, Torch}
-	case Wet:
-		return []Tool{ClimbingGear, Neither}
-	case Narrow:
-		return []Tool{Torch, Neither}
-	}
-	panic("Unknown RegionType")
-}
-
-type regionWithTool struct {
+type key struct {
 	x, y int
 	tool Tool
 }
 
-func (k regionWithTool) String() string {
+func (k key) String() string {
 	return fmt.Sprintf("(%d, %d)-%v", k.x, k.y, k.tool)
 }
 
 type vertex struct {
-	regionWithTool regionWithTool
-	prev           *vertex
-	distance       int
-	index          int
+	key      key
+	prev     *vertex
+	distance int
+	index    int
 }
 
 func (v *vertex) String() string {
-	return fmt.Sprintf("{%v:%d}", v.regionWithTool, v.distance)
+	return fmt.Sprintf("{%v:%d}", v.key, v.distance)
 }
 
 // Implements heap.Interface
@@ -163,24 +161,24 @@ func (pq *PriorityQueue) Pop() interface{} {
 
 type TravelState struct {
 	regionQueue *PriorityQueue
-	regionMap   map[regionWithTool]*vertex
-	extracted   map[regionWithTool]bool
+	regionMap   map[key]*vertex
+	extracted   map[key]bool
 }
 
 func newTravelState() TravelState {
 	var regionQueue PriorityQueue
 	return TravelState{
 		regionQueue: &regionQueue,
-		regionMap:   make(map[regionWithTool]*vertex),
-		extracted:   make(map[regionWithTool]bool),
+		regionMap:   make(map[key]*vertex),
+		extracted:   make(map[key]bool),
 	}
 }
 
-func (ts TravelState) add(key regionWithTool, prev *vertex, distance int) {
+func (ts TravelState) add(key key, prev *vertex, distance int) {
 	v := vertex{
-		regionWithTool: key,
-		prev:           prev,
-		distance:       distance,
+		key:      key,
+		prev:     prev,
+		distance: distance,
 	}
 	heap.Push(ts.regionQueue, &v)
 	ts.regionMap[key] = &v
@@ -189,35 +187,35 @@ func (ts TravelState) add(key regionWithTool, prev *vertex, distance int) {
 func (ts TravelState) extractMin() *vertex {
 	//fmt.Printf("Q=%v\n", ts.regionQueue)
 	vertex := heap.Pop(ts.regionQueue).(*vertex)
-	ts.extracted[vertex.regionWithTool] = true
+	ts.extracted[vertex.key] = true
 	return vertex
 }
 
-func (ts TravelState) unvisitedNeighbors(x, y int, riskLevelTable [][]int) []regionWithTool {
+func (ts TravelState) unvisitedNeighbors(from key, riskLevelTable [][]int) []key {
 	possibleCoords := []struct {
 		x, y int
 	}{
-		{x - 1, y},
-		{x + 1, y},
-		{x, y - 1},
-		{x, y + 1},
+		{from.x - 1, from.y},
+		{from.x + 1, from.y},
+		{from.x, from.y - 1},
+		{from.x, from.y + 1},
 	}
-	var unvisitedNeighbors []regionWithTool
+	var unvisitedNeighbors []key
 	for _, coord := range possibleCoords {
 		if coord.x < 0 || coord.y < 0 {
 			continue
 		}
-		toolsToUse := toolsForRegion(RegionType(riskLevelTable[coord.x][coord.y]))
+		toolsToUse := RegionType(riskLevelTable[coord.x][coord.y]).toolsForRegion()
 		for _, tool := range toolsToUse {
-			if !ts.extracted[regionWithTool{coord.x, coord.y, tool}] {
-				unvisitedNeighbors = append(unvisitedNeighbors, regionWithTool{coord.x, coord.y, tool})
+			if tool == from.tool && !ts.extracted[key{coord.x, coord.y, tool}] {
+				unvisitedNeighbors = append(unvisitedNeighbors, key{coord.x, coord.y, tool})
 			}
 		}
 	}
 	return unvisitedNeighbors
 }
 
-func (ts TravelState) updateDistance(key regionWithTool, prev *vertex, distance int) {
+func (ts TravelState) updateDistance(key key, prev *vertex, distance int) {
 	vertex, ok := ts.regionMap[key]
 	if !ok {
 		ts.add(key, prev, distance)
@@ -228,70 +226,42 @@ func (ts TravelState) updateDistance(key regionWithTool, prev *vertex, distance 
 	}
 }
 
-func canSwitchTo(regionType RegionType, tool Tool) bool {
-	switch regionType {
-	case Rocky:
-		return tool == ClimbingGear || tool == Torch
-	case Wet:
-		return tool == ClimbingGear || tool == Neither
-	case Narrow:
-		return tool == Neither || tool == Torch
-	}
-	return false
-}
-
-func travelTime(currentRegion RegionType, source, target Tool) (int, bool) {
-	if source == target {
-		return 1, true
-	} else if canSwitchTo(currentRegion, target){
-		return 8, true
-	} else {
-		return Infinity, false
-	}
-}
-
 func shortestTimeTo(x, y, depth int) int {
 	riskLevelTable := riskLevelTable(x+1000, y+1000, x, y, depth)
 
-	travelState := newTravelState()
-	travelState.add(regionWithTool{0, 0, Torch}, nil, 0)
+	target := key{x, y, Torch}
 
-	//start := vertex{
-	//	regionWithTool: regionWithTool{x: 0, y: 0, tool:Torch},
-	//	prev: nil,
-	//	distance: 0,
-	//}
-	//heap.Push(&regionQueue, &start)
-	//regionMap[]
+	travelState := newTravelState()
+	travelState.add(key{0, 0, Torch}, nil, 0)
 
 	var found *vertex
 	for found == nil {
 		vertex := travelState.extractMin()
-		fmt.Printf("Considering %v at distance %d \n", vertex.regionWithTool, vertex.distance)
-		if vertex.regionWithTool.x > x * 5 || vertex.regionWithTool.y > y * 5 {
-			continue
-		}
-		if vertex.regionWithTool.x == x && vertex.regionWithTool.y == y {
+		fmt.Printf("Considering %v at distance %d \n", vertex.key, vertex.distance)
+
+		if vertex.key == target {
 			found = vertex
 			break
 		}
-		neighbors := travelState.unvisitedNeighbors(vertex.regionWithTool.x, vertex.regionWithTool.y, riskLevelTable)
+		for _, t := range RegionType(riskLevelTable[vertex.key.x][vertex.key.y]).toolsForRegion() {
+			if t != vertex.key.tool {
+				travelState.updateDistance(key{vertex.key.x, vertex.key.y, t}, vertex, vertex.distance+7)
+			}
+		}
+
+		neighbors := travelState.unvisitedNeighbors(vertex.key, riskLevelTable)
 
 		for _, neighbor := range neighbors {
-			distance, canTravel := travelTime(RegionType(riskLevelTable[vertex.regionWithTool.x][vertex.regionWithTool.y]),
-				vertex.regionWithTool.tool, neighbor.tool)
-			if canTravel {
-				travelState.updateDistance(neighbor, vertex, vertex.distance + distance)
-			}
+			travelState.updateDistance(neighbor, vertex, vertex.distance+1)
 		}
 	}
 	distance := found.distance
-	if found.regionWithTool.tool != Torch {
+	if found.key.tool != Torch {
 		distance += 7
 	}
 	v := found
 	for v != nil {
-		fmt.Printf("->%v %v\n", v, RegionType(riskLevelTable[v.regionWithTool.x][v.regionWithTool.y]))
+		fmt.Printf("->%v %v\n", v, RegionType(riskLevelTable[v.key.x][v.key.y]))
 		v = v.prev
 	}
 	fmt.Printf("\n")
