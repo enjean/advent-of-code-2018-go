@@ -59,3 +59,17 @@ func TestInRangeOfStrongest(t *testing.T) {
 		t.Errorf("inRangeOfStrongest expected 7, was %d", result)
 	}
 }
+
+func TestClosestOverlapSearch(t *testing.T) {
+	result := closestOverlapSearch([]Nanobot{
+		{Position{10, 12, 12}, 2},
+		{Position{12, 14, 12}, 2},
+		{Position{16, 12, 12}, 4},
+		{Position{14, 14, 14}, 6},
+		{Position{50, 50, 50}, 200},
+		{Position{10, 10, 10}, 5},
+	})
+	if result != int64(36) {
+		t.Errorf("closestOverlapSearch expected 36, was %v", result)
+	}
+}
