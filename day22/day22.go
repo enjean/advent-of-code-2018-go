@@ -256,9 +256,6 @@ func shortestTimeTo(x, y, depth int) int {
 		}
 	}
 	distance := found.distance
-	if found.key.tool != Torch {
-		distance += 7
-	}
 	v := found
 	for v != nil {
 		fmt.Printf("->%v %v\n", v, RegionType(riskLevelTable[v.key.x][v.key.y]))
