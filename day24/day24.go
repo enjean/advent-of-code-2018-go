@@ -46,6 +46,7 @@ func (g *Group) attack(target *Group) {
 	damage := g.damageTo(*target)
 	numKilled := damage / target.hitPoints
 	target.numUnits -= numKilled
+	//fmt.Printf("Did %d damage, killing %d\n", damage, numKilled)
 	if target.numUnits < 0 {
 		target.numUnits = 0
 	}
@@ -142,6 +143,10 @@ type attackOrderEntry struct {
 	target *Group
 }
 
+func (a attackOrderEntry) String() string {
+	return fmt.Sprintf("%-v attacking %-v", *a.group, *a.target)
+}
+
 func addToAttackOrder(allGroups *[]attackOrderEntry, attacking, defending Army) {
 	targetSelections := attacking.selectTargets(defending)
 	for _, a := range attacking {
@@ -157,6 +162,7 @@ func performRound(army1, army2 Army) {
 	addToAttackOrder(&allGroups, army1, army2)
 	addToAttackOrder(&allGroups, army2, army1)
 
+	//fmt.Printf("Attack order %-v \n", allGroups)
 	sort.Slice(allGroups, func(i, j int) bool {
 		return allGroups[i].group.initiative > allGroups[j].group.initiative
 	})
@@ -166,15 +172,22 @@ func performRound(army1, army2 Army) {
 	}
 }
 
-func battle(army1, army2 Army) Army {
+func battle(army1, army2 Army) (Army, Army) {
+	round := 0
+	var l1, l2 int
 	for army1.totalUnits() > 0 && army2.totalUnits() > 0 {
 		performRound(army1, army2)
+		fmt.Printf("After round %d, army 1 %d army 2 %d\n", round, army1.totalUnits(), army2.totalUnits())
+		if army1.totalUnits() == l1 && army2.totalUnits() == l2 {
+			// deadlock
+			break
+		}
+		l1 = army1.totalUnits()
+		l2 = army2.totalUnits()
+		round++
 	}
 
-	if army1.totalUnits() > 0 {
-		return army1
-	}
-	return army2
+	return army1,army2
 }
 
 var groupExp = regexp.MustCompile(`(\d+) units each with (\d+) hit points (?:\((.*)\) )?with an attack that does (\d+) ([a-z]+) damage at initiative (\d+)`)
@@ -210,6 +223,28 @@ func ParseGroup(input string) Group {
 	}
 }
 
+func buildArmy(spec []Group, boost int) Army {
+	var groups []*Group
+	for _, specGroup := range spec {
+		group := specGroup
+		group.attackDamage += boost
+		groups = append(groups, &group)
+	}
+	return Army(groups)
+}
+
+func findMinBoost(immuneSystemInit, infectionInit []Group) (int, Army) {
+	boost := 1
+	for {
+		immuneResult, infectionResult := battle(buildArmy(immuneSystemInit, boost), buildArmy(infectionInit, 0))
+		if immuneResult.totalUnits() > 0 && infectionResult.totalUnits() == 0 {
+			return boost, immuneResult
+		}
+		fmt.Printf("With boost %d, infection finished with %d\n", boost, infectionResult.totalUnits())
+		boost++
+	}
+}
+
 func main() {
 
 	file, err := os.Open("day24/input.txt")
@@ -219,20 +254,23 @@ func main() {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	var immuneSystem, infection []*Group
-	var currentList *[]*Group
+	var immuneSystemInit, infectionInit []Group
+	var currentList *[]Group
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "Immune System:" {
-			currentList = &immuneSystem
+			currentList = &immuneSystemInit
 		} else if line == "Infection:" {
-			currentList = &infection
+			currentList = &infectionInit
 		} else if line != "" {
 			group := ParseGroup(line)
-			*currentList = append(*currentList, &group)
+			*currentList = append(*currentList, group)
 		}
 	}
 
-	winner := battle(immuneSystem, infection)
-	fmt.Printf("Part 1: %d", winner.totalUnits())
+	_, infectionResult := battle(buildArmy(immuneSystemInit, 0), buildArmy(infectionInit, 0))
+	fmt.Printf("Part 1: %d", infectionResult.totalUnits())
+
+	boost, immune := findMinBoost(immuneSystemInit, infectionInit)
+	fmt.Printf("Part 2: With boost of %d immune has %d left\n", boost, immune.totalUnits())
 }

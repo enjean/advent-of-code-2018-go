@@ -164,9 +164,9 @@ func TestBattle(t *testing.T) {
 	}
 	infection := Army{infection1, infection2}
 
-	winner := battle(immuneSystem, infection)
-	if winner.totalUnits() != 5216 {
-		t.Errorf("Did not get winner in expected state, was %v", winner)
+	immune, infection := battle(immuneSystem, infection)
+	if immune.totalUnits() != 0 && infection.totalUnits() != 5216 {
+		t.Errorf("Did not get winner in expected state, was %v", infection)
 	}
 }
 
@@ -214,5 +214,34 @@ func TestParseGroup(t *testing.T) {
 		if !reflect.DeepEqual(result, test.expected) {
 			t.Errorf("ParseGroup(%s) expected %v got %v", test.input, test.expected, result)
 		}
+	}
+}
+
+func TestFindMinBoost(t *testing.T) {
+	immune1 := Group{
+		numUnits: 17, hitPoints: 5390,
+		attackDamage: 4507, attackType: "fire", initiative: 2,
+		immuneTo: nil, weakTo: []string{"radiation", "bludgeoning"},
+	}
+	immune2 := Group{
+		numUnits: 989, hitPoints: 1274,
+		attackDamage: 25, attackType: "slashing", initiative: 3,
+		immuneTo: []string{"fire"}, weakTo: []string{"bludgeoning", "slashing"},
+	}
+
+	infection1 := Group{
+		numUnits: 801, hitPoints: 4706,
+		attackDamage: 116, attackType: "bludgeoning", initiative: 1,
+		immuneTo: nil, weakTo: []string{"radiation"},
+	}
+	infection2 := Group{
+		numUnits: 4485, hitPoints: 2961,
+		attackDamage: 12, attackType: "slashing", initiative: 4,
+		immuneTo: []string{"radiation"}, weakTo: []string{"fire"},
+	}
+
+	boost, immune := findMinBoost([]Group{immune1, immune2}, []Group{infection1, infection2})
+	if boost != 1570 && immune.totalUnits() != 51 {
+		t.Errorf("Test failed %d %v", boost, immune)
 	}
 }
