@@ -24,10 +24,6 @@ func abs(x int) int {
 	return x
 }
 
-type constellation struct {
-	points []int
-}
-
 func CountConstellations(points []Point) int {
 	adjacencyList := make(map[int][]int)
 	for i := 0; i < len(points) - 1; i++ {
